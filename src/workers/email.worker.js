@@ -1,5 +1,5 @@
 import { Worker } from 'bullmq';
-import { sendEmailOTP } from '../services/email.service.js';
+import { sendEmailOTP, sendForgotPasswordOTP } from '../services/email.service.js';
 import redisClient from '../config/redis.js';
 
 const emailWorker = new Worker('email', async (job) => {
@@ -7,6 +7,11 @@ const emailWorker = new Worker('email', async (job) => {
         case 'sendEmailOTP':
         await sendEmailOTP(job.data.email, job.data.otp);
         break;
+
+        case 'sendForgotPasswordOTP':
+        await sendForgotPasswordOTP(job.data.email, job.data.otp);
+        break;
+        
         default:
         throw new Error(`Unknown job name: ${job.name}`);
     }
