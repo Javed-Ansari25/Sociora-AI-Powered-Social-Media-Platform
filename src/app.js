@@ -17,10 +17,19 @@ app.use(cookieParser())
 app.use(express.static("Public"))
 
 // import route
+import authRoutes from "./modules/auth/auth.routes.js";
+
+// route endpoint
+app.use("/api/v1/auth", authRoutes); // auth route  
 
 
-// route declaration
-
+// Health route
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "Server is running successfully!"
+  })
+})
 
 // Global Error Handler 
 app.use((err, req, res, next) => {
