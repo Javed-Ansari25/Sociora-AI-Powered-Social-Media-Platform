@@ -1,17 +1,13 @@
-export const validate = (schema) => {
-  return (req, res, next) => {
-    const result = schema.safeParse(req.body);
+import { ApiError } from '../utils/apiError.js';
 
-    if (!result.success) {
-      return res.status(400).json({
-        success: false,
-        message: "Validation failed",
-        errors: result.error.issues
-      });
-    }
+export const validate = (schema) => (req, res, next) => {
+  const result = schema.safeParse(req.body);
 
-    req.body = result.data;
+  if (!result.success) {
+    const message = result.error.issues.map((issue) => issue.message).join(', ');
+    throw new ApiError(400, message);
+  }
 
-    next();
-  };
+  req.body = result.data;
+  next();
 };
