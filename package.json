@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "bcryptjs": "^3.0.3",
+    "bcrypt": "^6.0.0",
     "bullmq": "^6.0.2",
     "cloudinary": "^2.10.0",
     "cookie-parser": "^1.4.7",
