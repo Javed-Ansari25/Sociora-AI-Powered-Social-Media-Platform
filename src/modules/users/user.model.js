@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 
 const userSchema = new mongoose.Schema(
   {
@@ -93,14 +93,12 @@ userSchema.index({ username: 'text', name: 'text', bio: 'text' }); // search
 
 // HOOKS
 userSchema.pre('save', async function () {
-  if (!this.isModified('password')) return null;
+  if (!this.isModified('password')) return;
 
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-  } catch (err) {
-    return null;
-  }
+  const saltRounds = Number(process.env.BCRYPT_SALT_ROUNDS || 10);
+
+  const salt = await bcrypt.genSalt(saltRounds);
+  this.password = await bcrypt.hash(this.password, salt);
 });
 
 // INSTANCE METHODS

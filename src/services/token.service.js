@@ -1,17 +1,24 @@
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import redisClient from '../config/redis.js';
 
-// Keep this in sync with process.env.REFRESH_TOKEN_EXPIRY below (default '7d').
-// jsonwebtoken accepts a string ('7d') for signing; Redis TTL needs seconds,
-// so we keep a numeric mirror of the same duration here.
-const REFRESH_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
-const ACCESS_TOKEN_TTL_MS = 30 * 60 * 1000; // 30 min, mirrors ACCESS_TOKEN_EXPIRY default
+const REFRESH_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days — keep in sync with REFRESH_TOKEN_EXPIRY below
+const ACCESS_TOKEN_TTL_MS = 30 * 60 * 1000; // 30 min
 
 const baseCookieOptions = {
   httpOnly: true,
-  secure: true, // requires HTTPS — with sameSite:'none' this is mandatory or browsers drop the cookie
+  secure: true,
   sameSite: 'none',
+};
+
+
+const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
+
+const constantTimeEqual = (a, b) => {
+  const bufA = Buffer.from(a, 'hex');
+  const bufB = Buffer.from(b, 'hex');
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
 };
 
 export const tokenService = {
@@ -42,29 +49,21 @@ export const tokenService = {
     return jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
   },
 
-  /**
-   * Persists a refresh token so it can later be validated/revoked.
-   * Stored hashed (like a password) so a Redis leak alone doesn't hand out
-   * usable tokens. One active refresh token per user — a new login/refresh
-   * overwrites the previous one, which naturally logs out other sessions.
-   * If you want multi-device sessions, key this by `refreshToken:${userId}:${deviceId}` instead.
-   */
   storeRefreshToken: async (userId, refreshToken) => {
-    const hashed = await bcrypt.hash(refreshToken, 10);
+    const hashed = hashToken(refreshToken); // was: await bcrypt.hash(refreshToken, 10)
     await redisClient.set(`refreshToken:${userId}`, hashed, 'EX', REFRESH_TOKEN_TTL_SECONDS);
   },
 
   isRefreshTokenValid: async (userId, refreshToken) => {
     const stored = await redisClient.get(`refreshToken:${userId}`);
     if (!stored) return false;
-    return bcrypt.compare(refreshToken, stored);
+    return constantTimeEqual(stored, hashToken(refreshToken)); // was: await bcrypt.compare(...)
   },
 
   revokeRefreshToken: async (userId) => {
     await redisClient.del(`refreshToken:${userId}`);
   },
 
-  // Generic fallback (kept for backward compatibility with existing calls)
   cookieOptions: baseCookieOptions,
 
   getAccessTokenCookieOptions: () => ({
